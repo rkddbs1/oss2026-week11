@@ -11,3 +11,28 @@
 // 이 파일은 public/ 밖에 있습니다. 브라우저 주소창으로는 열리지 않습니다(P4 에서 확인).
 
 // P4 부터 여기 아래에 씁니다.
+
+import express from "express";
+
+const app = express();
+
+// 환경 변수 PORT가 있으면 사용하고, 없으면 3000 사용
+const PORT = process.env.PORT ?? 3000;
+
+// public 폴더의 정적 파일 제공
+app.use(express.static("public"));
+
+// 서버 상태 확인 API
+app.get("/api/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
+// 서버 시작
+app.listen(PORT, (error) => {
+  if (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+
+  console.log(`Listening on http://localhost:${PORT}`);
+});
