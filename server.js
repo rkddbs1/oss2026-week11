@@ -13,11 +13,20 @@
 // P4 부터 여기 아래에 씁니다.
 
 import express from "express";
+import { getDaily } from "./openMeteo.js";
+import { toDays } from "./public/logic.js";
 
 const app = express();
 
-// 환경 변수 PORT가 있으면 사용하고, 없으면 3000 사용
 const PORT = process.env.PORT ?? 3000;
+
+// public/main.js의 기존 CITIES 객체를 여기에 옮기세요.
+// 예: seoul, daejeon, gangneung
+const CITIES = {
+ seoul: { name: "Seoul", lat: 37.566, lon: 126.9784 },
+  daejeon: { name: "Daejeon", lat: 36.3504, lon: 127.3845 },
+  gangneung: { name: "Gangneung", lat: 37.7519, lon: 128.8761 }
+};
 
 // public 폴더의 정적 파일 제공
 app.use(express.static("public"));
@@ -25,6 +34,41 @@ app.use(express.static("public"));
 // 서버 상태 확인 API
 app.get("/api/health", (req, res) => {
   res.status(200).json({ status: "ok" });
+});
+
+// 도시별 7일 예보 API
+app.get("/api/forecast", async (req, res) => {
+  const cityKey = req.query.city;
+
+  // 등록되지 않은 도시 검사
+  if (
+    typeof cityKey !== "string" ||
+    !Object.hasOwn(CITIES, cityKey)
+  ) {
+    return res.status(400).json({
+      error: `Unknown city: ${cityKey}`
+    });
+  }
+
+  const city = CITIES[cityKey];
+
+  try {
+    // Open-Meteo에서 원본 daily 데이터 가져오기
+    const daily = await getDaily(city);
+
+    // 날짜별 객체 배열로 변환
+    const days = toDays(daily);
+
+    // 프론트엔드에 필요한 데이터만 반환
+    res.status(200).json({
+      city: city.name,
+      days
+    });
+  } catch (error) {
+    res.status(502).json({
+      error: error.message
+    });
+  }
 });
 
 // 서버 시작
