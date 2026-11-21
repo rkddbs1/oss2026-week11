@@ -20,6 +20,18 @@ const app = express();
 
 const PORT = process.env.PORT ?? 3000;
 
+// 관리자 토큰이 없으면 서버 실행 중단
+if (!process.env.ADMIN_TOKEN) {
+  console.error(
+    "ADMIN_TOKEN is not set. Copy .env.example to .env."
+  );
+  process.exit(1);
+}
+
+// 도시별 요청 횟수 저장
+const counts = {};
+
+
 // public/main.js의 기존 CITIES 객체를 여기에 옮기세요.
 // 예: seoul, daejeon, gangneung
 const CITIES = {
@@ -52,6 +64,9 @@ app.get("/api/forecast", async (req, res) => {
 
   const city = CITIES[cityKey];
 
+    // 유효한 도시 요청만 횟수 증가
+    counts[cityKey] = (counts[cityKey] ?? 0) + 1;
+
   try {
     // Open-Meteo에서 원본 daily 데이터 가져오기
     const daily = await getDaily(city);
@@ -69,6 +84,24 @@ app.get("/api/forecast", async (req, res) => {
       error: error.message
     });
   }
+});
+
+// 관리자 전용 통계 API
+app.get("/api/stats", (req, res) => {
+  const authorization = req.get("Authorization");
+
+  // 토큰이 없거나 일치하지 않으면 접근 거부
+  if (
+    authorization !==
+    `Bearer ${process.env.ADMIN_TOKEN}`
+  ) {
+    return res.status(401).json({
+      error: "Unauthorized"
+    });
+  }
+
+  // 인증 성공 시 도시별 요청 횟수 반환
+  res.status(200).json(counts);
 });
 
 // 서버 시작
